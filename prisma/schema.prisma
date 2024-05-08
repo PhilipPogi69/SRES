@@ -15,10 +15,47 @@ datasource db {
 
 model User {
   id          String      @id @default(uuid())
-  email       String?
+  email       String? // Nullable, as email might not be provided
   username    String      @unique
   password    String
   accessLevel ACCESSLEVEL
+}
+
+model ClassInfo {
+  classId         String         @id @default(uuid())
+  classCode       String
+  schedule        String
+  professor       ProfessorInfo? @relation(fields: [professorInfoId], references: [profID])
+  professorInfoId String?
+  enrollments     Enrollment[]
+}
+
+model StudentInfo {
+  studentId    String       @id @default(uuid())
+  studentName  String
+  studentEmail String
+  enrollments  Enrollment[]
+}
+
+model Enrollment {
+  enrollmentId  String      @id @default(uuid())
+  classInfo     ClassInfo   @relation(fields: [classInfoId], references: [classId])
+  classInfoId   String
+  studentInfo   StudentInfo @relation(fields: [studentInfoId], references: [studentId])
+  studentInfoId String
+}
+
+model ProfessorInfo {
+  profID     String      @id @default(uuid())
+  profName   String
+  department String
+  email      String?
+  classes    ClassInfo[]
+}
+
+model ClassroomInfo {
+  roomID     String @id @default(uuid())
+  roomNumber String
 }
 
 enum ACCESSLEVEL {
