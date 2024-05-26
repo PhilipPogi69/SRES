@@ -19,22 +19,34 @@ model User {
   username    String      @unique
   password    String
   accessLevel ACCESSLEVEL
+  testId      String?
 }
 
 model ClassInfo {
-  classId         String         @id @default(uuid())
+  classId         String           @id @default(uuid())
   classCode       String
   schedule        String
-  professor       ProfessorInfo? @relation(fields: [professorInfoId], references: [profID])
+  professor       ProfessorInfo?   @relation(fields: [professorInfoId], references: [profID])
   professorInfoId String?
   enrollments     Enrollment[]
+  // Grades          Grades[]
+  GradesTemplate  GradesTemplate[]
 }
 
 model StudentInfo {
-  studentId    String       @id @default(uuid())
-  studentName  String
-  studentEmail String
-  enrollments  Enrollment[]
+  studentId     String          @id @default(uuid())
+  studentName   String
+  studentEmail  String
+  enrollments   Enrollment[]
+  StudentGrades StudentGrades[]
+}
+
+model ProfessorInfo {
+  profID     String      @id @default(uuid())
+  profName   String
+  department String
+  email      String?
+  classes    ClassInfo[]
 }
 
 model Enrollment {
@@ -45,12 +57,37 @@ model Enrollment {
   studentInfoId String
 }
 
-model ProfessorInfo {
-  profID     String      @id @default(uuid())
-  profName   String
-  department String
-  email      String?
-  classes    ClassInfo[]
+// model Grades {
+//   id          String      @id @default(uuid())
+//   field       String
+//   value       Float
+//   studentInfo StudentInfo @relation(fields: [studentInfoStudentId], references: [studentId])
+//   ClassInfo            ClassInfo? @relation(fields: [classInfoClassId], references: [classId])
+//   classInfoClassId     String?
+//   studentInfoStudentId String
+// }
+
+model GradesTemplate {
+  id          String     @id @default(uuid())
+  title       String
+  percentage  Float
+  classInfo   ClassInfo? @relation(fields: [classInfoId], references: [classId])
+  classInfoId String?
+
+  gradeId       String?
+  symetricGrade GradesTemplate[] @relation("GradingInfo")
+  Grades        GradesTemplate[] @relation("GradingInfo")
+  StudentGrades StudentGrades[]
+}
+
+model StudentGrades {
+  id    String @id @default(uuid())
+  value Float
+
+  GradeTemplate    GradesTemplate @relation(fields: [gradesTemplateId], references: [id])
+  gradesTemplateId String
+  studentInfo      StudentInfo    @relation(fields: [studentInfoId], references: [studentId])
+  studentInfoId    String
 }
 
 model ClassroomInfo {
