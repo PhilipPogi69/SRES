@@ -1,6 +1,6 @@
 "use server";
 import { v4 as uuidv4 } from "uuid";
-
+import bcrypt from "bcrypt";
 import {
   ClassInfo,
   StudentInfo,
@@ -11,14 +11,87 @@ import {
   User,
   GradesTemplate,
 } from "@prisma/client";
+import { colleges } from "./store";
 import { use } from "react";
-import Grades from "@/app/Grades/page";
+
 const prisma = new PrismaClient();
 
+interface StudentInfoType {
+  info: StudentInfo;
+  user: User;
+}
 interface Result {
   success: boolean;
   message?: string;
   data?: any;
+}
+
+export async function readColleges(): Promise<Result> {
+  try {
+    const data = await prisma.college.findMany({
+      include: {
+        Department: true,
+      },
+    });
+    return {
+      data: data,
+      success: true,
+    };
+  } catch (error) {
+    if (error instanceof Error) {
+      return {
+        success: false,
+        message: `Things exploded (${error.message})`,
+      };
+    } else {
+      return {
+        success: false,
+      };
+    }
+  }
+}
+
+export async function collegeAndDepartmentIntitiation(): Promise<Result> {
+  try {
+    const collegeDepartmentData = colleges;
+    await prisma.$transaction(async (tx) => {
+      const colleges = await tx.college.findMany();
+      const departments = await tx.department.findMany();
+      if (colleges.length === 0 && departments.length === 0) {
+        for (let index = 0; index < collegeDepartmentData.length; index++) {
+          const college = collegeDepartmentData[index];
+          const createCollege = await tx.college.create({
+            data: {
+              college: college.name,
+            },
+          });
+          for (let index = 0; index < college.departments.length; index++) {
+            const department = college.departments[index];
+            const createDepartment = await tx.department.create({
+              data: {
+                department: department.name,
+                collegeCollegeId: createCollege.collegeId,
+              },
+            });
+          }
+        }
+      }
+    });
+    return {
+      success: true,
+    };
+  } catch (error) {
+    if (error instanceof Error) {
+      return {
+        success: false,
+        message: `Things exploded (${error.message})`,
+      };
+    } else {
+      return {
+        success: false,
+      };
+    }
+  }
 }
 
 export async function generateStudentGrades(
@@ -29,17 +102,18 @@ export async function generateStudentGrades(
     await prisma.$transaction(async (tx) => {
       const template = await tx.gradesTemplate.findMany({
         where: {
-          classInfoId: classId,
+          currentClassId: classId,
         },
       });
 
       for (let index = 0; index < template.length; index++) {
-        const { classInfoId, gradeId, id, percentage, title } = template[index];
+        const { currentClassId, gradeId, id, percentage, title } =
+          template[index];
         await tx.studentGrades.create({
           data: {
             value: 0,
             gradesTemplateId: id,
-            studentInfoId: studentId,
+            studentCurrentClassesId: currentClassId,
           },
         });
       }
@@ -57,6 +131,94 @@ export async function generateStudentGrades(
       return {
         success: false,
       };
+    }
+  }
+}
+
+export async function readMainGradeTamplate(
+  currentClassId: string
+): Promise<Result> {
+  try {
+    const data = await prisma.gradesTemplate.findMany({
+      where: { gradeId: null, currentClassId: currentClassId },
+      include: {
+        Grades: {
+          include: {
+            Grades: {
+              include: {
+                Grades: {
+                  include: {
+                    Grades: {
+                      include: { Grades: { include: { Grades: true } } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    return {
+      data: data,
+      success: true,
+    };
+  } catch (error) {
+    if (error instanceof Error) {
+      return {
+        success: false,
+        message: `Things exploded (${error.message})`,
+      };
+    } else {
+      return {
+        success: false,
+      };
+    }
+  }
+}
+
+export async function createCurrentStudentClass() {
+  try {
+    // const res = await prisma.
+    return null;
+  } catch (error) {
+    if (error instanceof Error) {
+      console.log(error.message);
+    }
+  }
+}
+
+export async function generateStudentsInfoAndAccounts(data: StudentInfoType[]) {
+  try {
+    await prisma.$transaction(async (tx) => {
+      for (let index = 0; index < data.length; index++) {
+        const { info, user } = data[index];
+        const password = await bcrypt.hash(user.password, 10);
+        const userData = await tx.user.create({
+          data: {
+            dateOfBirth: user.dateOfBirth,
+            accessLevel: user.accessLevel,
+            password: password,
+            username: user.username,
+            email: user.email,
+          },
+        });
+
+        await tx.studentInfo.create({
+          data: {
+            dateOfBirth: info.dateOfBirth,
+            studentCode: info.studentCode,
+            studentEmail: info.studentEmail,
+            studentName: info.studentName,
+            userId: userData.id,
+          },
+        });
+      }
+    });
+    return null;
+  } catch (error) {
+    if (error instanceof Error) {
+      console.log(error.message);
     }
   }
 }
@@ -106,12 +268,13 @@ export async function createGradeTamplate(
   try {
     await prisma.$transaction(async (tx) => {
       for (let index = 0; index < data.length; index++) {
-        const { classInfoId, percentage, title, id, gradeId } = data[index];
+        const { currentClassId, percentage, title, id, gradeId } = data[index];
         if (!gradeId) {
           await tx.gradesTemplate.create({
             data: {
               id: id,
-              classInfoId: classInfoId,
+
+              currentClassId: currentClassId || "",
               percentage: percentage || 0,
               title: title || "",
             },
@@ -120,7 +283,7 @@ export async function createGradeTamplate(
       }
 
       for (let index = 0; index < data.length; index++) {
-        const { classInfoId, percentage, title, id, gradeId } = data[index];
+        const { currentClassId, percentage, title, id, gradeId } = data[index];
 
         if (gradeId) {
           const test = await tx.gradesTemplate.update({
@@ -129,7 +292,7 @@ export async function createGradeTamplate(
               Grades: {
                 create: {
                   id: id,
-                  classInfoId: classInfoId,
+                  currentClassId: currentClassId || "",
                   gradeId: gradeId,
                   percentage: percentage || 0,
                   title: title || "",
@@ -137,7 +300,6 @@ export async function createGradeTamplate(
               },
             },
           });
-          console.log(test);
         }
       }
     });
@@ -179,19 +341,92 @@ export async function createGradeTamplate(
 // }
 
 //Create User
+
+export async function hasEmptyValues(
+  obj: any,
+  exemptions: string[] = []
+): Promise<boolean> {
+  if (typeof obj !== "object" || obj === null) {
+    return false;
+  }
+
+  for (const key in obj) {
+    if (!obj.hasOwnProperty(key)) continue;
+
+    if (exemptions.includes(key)) continue;
+
+    const value = obj[key];
+
+    if (value instanceof Date) {
+      return false;
+    }
+
+    if (value === "" || value === 0) {
+      return true;
+    }
+
+    if (Array.isArray(value) && value.length === 0) {
+      return true;
+    }
+
+    if (typeof value === "object" && value !== null) {
+      if (Object.keys(value).length === 0) {
+        return true;
+      }
+      if (await hasEmptyValues(value, exemptions)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 export async function createUserInfo(data: User): Promise<Result> {
-  const { email, username, password, accessLevel } = data;
+  const { email, username, password, accessLevel, dateOfBirth } = data;
+
+  const hashed = await bcrypt.hash(password, 10);
   try {
+    const userData = await prisma.user.findFirst({
+      where: { username: username },
+    });
+    if (userData) {
+      throw new Error(
+        "There is already an account that exist with the same username, pick another one. "
+      );
+    }
+
     const createUserData = await prisma.user.create({
       data: {
-        email: email,
         username: username,
-        password: password,
+        password: hashed,
         accessLevel: accessLevel,
+        dateOfBirth: dateOfBirth,
       },
     });
     return {
       success: true,
+    };
+  } catch (error) {
+    if (error instanceof Error) {
+      return {
+        success: false,
+        message: `${error.message}`,
+      };
+    } else {
+      return {
+        success: false,
+      };
+    }
+  }
+}
+
+export async function readDepartments(): Promise<Result> {
+  try {
+    const departments = await prisma.department.findMany();
+    return {
+      success: true,
+      data: departments, // Optionally return the retrieved data
     };
   } catch (error) {
     if (error instanceof Error) {
@@ -208,14 +443,11 @@ export async function createUserInfo(data: User): Promise<Result> {
 }
 
 //Read User
-export async function readUserInfo(data: User): Promise<Result> {
-  const { email, username, password, accessLevel } = data;
+export async function readUserInfo(username: string): Promise<Result> {
   try {
-    const readUserData = await prisma.user.findMany({
+    const readUserData = await prisma.user.findUnique({
       where: {
-        email: email,
         username: username,
-        password: password,
       },
     });
     return {
@@ -293,15 +525,70 @@ export async function deleteUserInfo(data: User): Promise<Result> {
   }
 }
 
+export async function createClassesFromFile(
+  data: ClassInfo[]
+): Promise<Result> {
+  try {
+    const createClassData = await prisma.classInfo.createMany({
+      data: data,
+    });
+    return {
+      success: true,
+    };
+  } catch (error) {
+    if (error instanceof Error) {
+      return {
+        success: false,
+        message: `Things exploded (${error.message})`,
+      };
+    } else {
+      return {
+        success: false,
+      };
+    }
+  }
+}
+
+export async function createCurrentClass(
+  proffId: string,
+  classId: string
+): Promise<Result> {
+  try {
+    const createClassData = await prisma.currentClasses.create({
+      data: {
+        assignedBy: proffId,
+        classInfoClassId: classId,
+        professorInfoProfID: proffId,
+      },
+    });
+    return {
+      success: true,
+    };
+  } catch (error) {
+    if (error instanceof Error) {
+      return {
+        success: false,
+        message: `Things exploded (${error.message})`,
+      };
+    } else {
+      return {
+        success: false,
+      };
+    }
+  }
+}
+
 // Create Class
 export async function createClassInfo(data: ClassInfo): Promise<Result> {
-  const { classCode, schedule, professorInfoId } = data;
+  const { classCode, schedule, classId, description, units } = data;
   try {
     const createClassData = await prisma.classInfo.create({
       data: {
-        professorInfoId: professorInfoId,
         classCode: classCode,
         schedule: schedule,
+        description: description,
+        classId: classId,
+        units: units,
       },
     });
     return {
@@ -349,15 +636,65 @@ export async function readSingleClassInfo(data: ClassInfo): Promise<Result> {
 }
 
 // Read Class
-export async function readClassInfo(data: ClassInfo): Promise<Result> {
-  const { classCode, schedule } = data;
+
+export async function readCurrentClassInfoByProffIdAndClassId(
+  proffId: string,
+  classId: string
+): Promise<Result> {
   try {
-    const readClassData = await prisma.classInfo.findMany({
+    const readClassData = await prisma.currentClasses.findFirst({
       where: {
-        classCode: classCode, // Filter by classCode if provided
-        schedule: schedule, // Filter by schedule if provided
+        AND: [{ professorInfoProfID: proffId }, { classInfoClassId: classId }],
       },
+      include: { class: true },
     });
+    return {
+      success: true,
+      data: readClassData, // Optionally return the retrieved data
+    };
+  } catch (error) {
+    if (error instanceof Error) {
+      return {
+        success: false,
+        message: `Things exploded (${error.message})`,
+      };
+    } else {
+      return {
+        success: false,
+      };
+    }
+  }
+}
+
+export async function readCurrentClassInfo(proffId: string): Promise<Result> {
+  try {
+    const readClassData = await prisma.currentClasses.findMany({
+      where: {
+        professorInfoProfID: proffId,
+      },
+      include: { class: true },
+    });
+    return {
+      success: true,
+      data: readClassData.map((data) => data.class), // Optionally return the retrieved data
+    };
+  } catch (error) {
+    if (error instanceof Error) {
+      return {
+        success: false,
+        message: `Things exploded (${error.message})`,
+      };
+    } else {
+      return {
+        success: false,
+      };
+    }
+  }
+}
+
+export async function readClassInfo(): Promise<Result> {
+  try {
+    const readClassData = await prisma.classInfo.findMany();
     return {
       success: true,
       data: readClassData, // Optionally return the retrieved data
@@ -406,6 +743,11 @@ export async function updateClassInfo(data: ClassInfo): Promise<Result> {
   }
 }
 
+export async function getProffessorInfoByUserId(userId: string) {
+  const res = prisma.professorInfo.findFirst({ where: { userId: userId } });
+  return res;
+}
+
 // Delete Class
 export async function deleteClassInfo(data: ClassInfo): Promise<Result> {
   const { classId, classCode, schedule } = data;
@@ -436,13 +778,15 @@ export async function deleteClassInfo(data: ClassInfo): Promise<Result> {
 export async function createProfessorInfo(
   data: ProfessorInfo
 ): Promise<Result> {
-  const { email, profName, department } = data;
+  const { collegeId, departmentId, email, profID, profName, userId } = data;
   try {
     const createProfData = await prisma.professorInfo.create({
       data: {
         profName: profName,
-        department: department,
         email: email,
+        departmentId: departmentId,
+        userId: userId,
+        collegeId: collegeId,
       },
     });
     return {
@@ -488,7 +832,7 @@ export async function readProfessorInfo(): Promise<Result> {
 export async function updateProfessorInfo(
   data: ProfessorInfo
 ): Promise<Result> {
-  const { profID, email, profName, department } = data;
+  const { profID, email, profName } = data;
   try {
     const updateProfData = await prisma.professorInfo.updateMany({
       where: {
@@ -496,7 +840,7 @@ export async function updateProfessorInfo(
       },
       data: {
         profName: "Ben Burnik",
-        department: "CIT",
+
         email: "benburnik@gmail.com",
       },
     });
@@ -521,7 +865,7 @@ export async function updateProfessorInfo(
 export async function deleteProfessorInfo(
   data: ProfessorInfo
 ): Promise<Result> {
-  const { profID, email, profName, department } = data;
+  const { profID, email, profName } = data;
   try {
     const deleteProfData = await prisma.professorInfo.deleteMany({
       where: {
@@ -546,31 +890,32 @@ export async function deleteProfessorInfo(
 }
 
 // Create Student
-export async function createStudentInfo(data: StudentInfo): Promise<Result> {
-  const { studentId, studentName, studentEmail } = data;
-  try {
-    const createStudentData = await prisma.studentInfo.create({
-      data: {
-        studentName: studentName,
-        studentEmail: studentEmail,
-      },
-    });
-    return {
-      success: true,
-    };
-  } catch (error) {
-    if (error instanceof Error) {
-      return {
-        success: false,
-        message: `Things exploded (${error.message})`,
-      };
-    } else {
-      return {
-        success: false,
-      };
-    }
-  }
-}
+// export async function createStudentInfo(data: StudentInfo): Promise<Result> {
+//   const { studentId, studentName, studentEmail } = data;
+//   try {
+//     const createStudentData = await prisma.studentInfo.create({
+//       data: {
+//         studentName: studentName,
+//         studentEmail: studentEmail,
+//         dateOfBirth :
+//       },
+//     });
+//     return {
+//       success: true,
+//     };
+//   } catch (error) {
+//     if (error instanceof Error) {
+//       return {
+//         success: false,
+//         message: `Things exploded (${error.message})`,
+//       };
+//     } else {
+//       return {
+//         success: false,
+//       };
+//     }
+//   }
+// }
 
 // Read Student
 export async function readStudentInfo(data: StudentInfo): Promise<Result> {

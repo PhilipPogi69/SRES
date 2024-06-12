@@ -14,39 +14,92 @@ datasource db {
 }
 
 model User {
-  id          String      @id @default(uuid())
-  email       String? // Nullable, as email might not be provided
-  username    String      @unique
-  password    String
-  accessLevel ACCESSLEVEL
-  testId      String?
+  id            String          @id @default(uuid())
+  email         String? // Nullable, as email might not be provided
+  username      String          @unique
+  password      String
+  dateOfBirth   DateTime
+  accessLevel   ACCESSLEVEL
+  ProfessorInfo ProfessorInfo[]
+  StudentInfo   StudentInfo[]
 }
 
 model ClassInfo {
-  classId         String           @id @default(uuid())
-  classCode       String
-  schedule        String
-  professor       ProfessorInfo?   @relation(fields: [professorInfoId], references: [profID])
-  professorInfoId String?
-  enrollments     Enrollment[]
-  // Grades          Grades[]
-  GradesTemplate  GradesTemplate[]
+  classId     String @id @default(uuid())
+  classCode   String
+  units       Int
+  schedule    String
+  description String
+
+  enrollments    Enrollment[]
+  GradesTemplate GradesTemplate[]
+  CurrentClasses CurrentClasses[]
+}
+
+model College {
+  collegeId     String          @id @default(uuid())
+  college       String
+  ProfessorInfo ProfessorInfo[]
+  Department    Department[]
+}
+
+model Department {
+  departmentId     String          @id @default(uuid())
+  department       String
+  college          College         @relation(fields: [collegeCollegeId], references: [collegeId])
+  professorInfo    ProfessorInfo[]
+  collegeCollegeId String
 }
 
 model StudentInfo {
-  studentId     String          @id @default(uuid())
-  studentName   String
-  studentEmail  String
-  enrollments   Enrollment[]
-  StudentGrades StudentGrades[]
+  studentId    String   @id @default(uuid())
+  studentName  String
+  studentCode  String
+  studentEmail String
+  dateOfBirth  DateTime
+
+  userInfo User   @relation(fields: [userId], references: [id])
+  userId   String
+
+  enrollments           Enrollment[]
+  StudentCurrentClasses StudentCurrentClasses[]
 }
 
 model ProfessorInfo {
-  profID     String      @id @default(uuid())
-  profName   String
-  department String
-  email      String?
-  classes    ClassInfo[]
+  profID   String  @id @default(uuid())
+  profName String
+  email    String?
+
+  userInfo       User             @relation(fields: [userId], references: [id])
+  department     Department       @relation(fields: [departmentId], references: [departmentId])
+  departmentId   String
+  College        College?         @relation(fields: [collegeId], references: [collegeId])
+  collegeId      String?
+  userId         String
+  CurrentClasses CurrentClasses[]
+}
+
+model CurrentClasses {
+  currentClassId        String                  @id @default(uuid())
+  class                 ClassInfo               @relation(fields: [classInfoClassId], references: [classId])
+  classInfoClassId      String
+  professor             ProfessorInfo           @relation(fields: [professorInfoProfID], references: [profID])
+  professorInfoProfID   String
+  assignedAt            DateTime                @default(now())
+  assignedBy            String
+  GradesTemplate        GradesTemplate[]
+  StudentCurrentClasses StudentCurrentClasses[]
+}
+
+model StudentCurrentClasses {
+  id             String         @id @default(uuid())
+  
+  currentClass   CurrentClasses @relation(fields: [currentClassId], references: [currentClassId])
+  currentClassId String
+  student        StudentInfo    @relation(fields: [studentInfoStudentId], references: [studentId])
+  studentInfoStudentId String
+
+  StudentGrades        StudentGrades[]
 }
 
 model Enrollment {
@@ -57,37 +110,30 @@ model Enrollment {
   studentInfoId String
 }
 
-// model Grades {
-//   id          String      @id @default(uuid())
-//   field       String
-//   value       Float
-//   studentInfo StudentInfo @relation(fields: [studentInfoStudentId], references: [studentId])
-//   ClassInfo            ClassInfo? @relation(fields: [classInfoClassId], references: [classId])
-//   classInfoClassId     String?
-//   studentInfoStudentId String
-// }
-
 model GradesTemplate {
-  id          String     @id @default(uuid())
-  title       String
-  percentage  Float
-  classInfo   ClassInfo? @relation(fields: [classInfoId], references: [classId])
-  classInfoId String?
+  id         String @id @default(uuid())
+  title      String
+  percentage Float
 
-  gradeId       String?
-  symetricGrade GradesTemplate[] @relation("GradingInfo")
-  Grades        GradesTemplate[] @relation("GradingInfo")
-  StudentGrades StudentGrades[]
+  classInfo      CurrentClasses @relation(fields: [currentClassId], references: [currentClassId])
+  currentClassId String
+
+  gradeId          String?
+  symetricGrade    GradesTemplate[] @relation("GradingInfo")
+  Grades           GradesTemplate[] @relation("GradingInfo")
+  StudentGrades    StudentGrades[]
+  ClassInfo        ClassInfo?       @relation(fields: [classInfoClassId], references: [classId])
+  classInfoClassId String?
 }
 
 model StudentGrades {
   id    String @id @default(uuid())
   value Float
 
-  GradeTemplate    GradesTemplate @relation(fields: [gradesTemplateId], references: [id])
-  gradesTemplateId String
-  studentInfo      StudentInfo    @relation(fields: [studentInfoId], references: [studentId])
-  studentInfoId    String
+  GradeTemplate           GradesTemplate        @relation(fields: [gradesTemplateId], references: [id])
+  gradesTemplateId        String
+  curentStudentClass      StudentCurrentClasses @relation(fields: [studentCurrentClassesId], references: [id])
+  studentCurrentClassesId String
 }
 
 model ClassroomInfo {
@@ -99,4 +145,5 @@ enum ACCESSLEVEL {
   ADMIN
   STUDENT
   INSTRUCTOR
+  VISITOR
 }

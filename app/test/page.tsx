@@ -3,42 +3,42 @@ import { v4 as uuidv4 } from "uuid";
 
 const gradeTemplate: GradesTemplate[] = [
   {
-    classInfoId: "12022b3f-769b-4bbb-823a-4a553125cfc4",
+    classInfoId: "f7b8ea0c-b8ee-4b89-9acc-f20998cd26e9",
     gradeId: null,
     id: "1",
     percentage: 30,
     title: "quizes",
   },
   {
-    classInfoId: "12022b3f-769b-4bbb-823a-4a553125cfc4",
+    classInfoId: "f7b8ea0c-b8ee-4b89-9acc-f20998cd26e9",
     gradeId: "1",
     id: "2",
     percentage: 50,
     title: "quiz 1",
   },
   {
-    classInfoId: "12022b3f-769b-4bbb-823a-4a553125cfc4",
+    classInfoId: "f7b8ea0c-b8ee-4b89-9acc-f20998cd26e9",
     gradeId: "1",
     id: "3",
     percentage: 50,
     title: "quiz 2",
   },
   {
-    classInfoId: "12022b3f-769b-4bbb-823a-4a553125cfc4",
+    classInfoId: "f7b8ea0c-b8ee-4b89-9acc-f20998cd26e9",
     gradeId: null,
     id: "4",
     percentage: 70,
     title: "finals",
   },
   {
-    classInfoId: "12022b3f-769b-4bbb-823a-4a553125cfc4",
+    classInfoId: "f7b8ea0c-b8ee-4b89-9acc-f20998cd26e9",
     gradeId: "2",
     id: "5",
     percentage: 50,
     title: "part 1",
   },
   {
-    classInfoId: "12022b3f-769b-4bbb-823a-4a553125cfc4",
+    classInfoId: "f7b8ea0c-b8ee-4b89-9acc-f20998cd26e9",
     gradeId: "2",
     id: "6",
     percentage: 50,
@@ -50,26 +50,23 @@ import {
   createClassInfo,
   createGradeTamplate,
   createProfessorInfo,
-  createStudentInfo,
   generateStudentGrades,
   readGradeTamplate,
 } from "@/lib/util";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { GradesTemplate } from "@prisma/client";
 
 export default function page() {
+  const [temp, setTemp] = useState([]);
+
+  useEffect(() => {
+    console.log(temp);
+  }, [temp]);
   return (
     <div>
       <button
         onClick={() => {
-          async function create() {
-            const test = await createStudentInfo({
-              studentEmail: "alex.smith@example.com",
-              studentName: "Alex Smith",
-              studentId: "1",
-            });
-            console.log("Student :" + test.success);
-          }
+          async function create() {}
           create();
         }}
         className="btn btn-xs btn-neutral"
@@ -80,15 +77,7 @@ export default function page() {
       <button
         className="btn btn-xs btn-neutral"
         onClick={() => {
-          async function create() {
-            const test = await createProfessorInfo({
-              department: "COS",
-              email: "email.com",
-              profID: "123",
-              profName: "Joe Mama",
-            });
-            console.log("Professor :" + test.success);
-          }
+          async function create() {}
           create();
         }}
       >
@@ -97,15 +86,7 @@ export default function page() {
 
       <button
         onClick={() => {
-          async function create() {
-            const test = await createClassInfo({
-              professorInfoId: "18bd7d21-a617-49ff-abf6-b53393460176",
-              classCode: "123",
-              classId: "1",
-              schedule: "Friday 10am-10pm",
-            });
-            console.log("Class :" + test.success + test.message);
-          }
+          async function create() {}
           create();
         }}
         className="btn btn-xs btn-neutral"
@@ -131,7 +112,7 @@ export default function page() {
         onClick={() => {
           async function create() {
             const test = await readGradeTamplate();
-            console.log(test.data);
+            setTemp(test.data);
           }
           create();
         }}
@@ -153,6 +134,31 @@ export default function page() {
       >
         generate Student Grades
       </button>
+
+      <div className="overflow-x-auto">
+        <table className="table">
+          {/* head */}
+          <thead>
+            <tr>
+              <th></th>
+              <th>Name</th>
+              {temp ? temp.map((data: any) => <th>{data.title}</th>) : null}
+            </tr>
+          </thead>
+          <tbody>
+            {/* row 1 */}
+            <tr className="bg-base-200">
+              <th>1</th>
+              <td>
+                <input type="text" className="input-sx " />
+              </td>
+              <td>Quality Control Specialist</td>
+              <td>Blue</td>
+            </tr>
+            {/* row 2 */}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
