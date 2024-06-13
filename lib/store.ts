@@ -1,4 +1,9 @@
-import { ACCESSLEVEL, GradesTemplate, User } from "@prisma/client";
+import {
+  ACCESSLEVEL,
+  GradesTemplate,
+  StudentGrades,
+  User,
+} from "@prisma/client";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
@@ -190,4 +195,36 @@ export const useCreateGradeTemplate = create<CreateGradeTemplate>()((set) => ({
   },
 }));
 
+interface studentGradesStore {
+  data: StudentGrades[];
+  push: (data: StudentGrades) => void;
+  udpate: (data: StudentGrades) => void;
+  replace: (data: StudentGrades[]) => void;
 
+  empty: () => void;
+}
+
+export const useStudentGradesScore = create<studentGradesStore>()((set) => ({
+  data: [],
+
+  push: (data) => {
+    set((state) => ({ ...state, data: [...state.data, data] }));
+  },
+  empty: () => {
+    set((state) => ({ ...state, data: [] }));
+  },
+  udpate: (data) => {
+    set((state) => {
+      const arr = state.data.filter(
+        (obj) =>
+          obj.gradesTemplateId !== data.gradesTemplateId &&
+          obj.studentCurrentClassesId !== data.studentCurrentClassesId
+      );
+
+      return { ...state, data: [...arr, data] };
+    });
+  },
+  replace: (data) => {
+    set((state) => ({ ...state, data: data }));
+  },
+}));

@@ -1,28 +1,39 @@
 "use client";
 
 import { useCrateClassModalStore, useModalStore } from "@/lib/store";
-import { createCurrentClass, readClassInfo } from "@/lib/util";
-import { ClassInfo } from "@prisma/client";
+import {
+  createCurrentClass,
+  createCurrentStudentClass,
+  readClassInfo,
+  readStudentInfo,
+} from "@/lib/util";
+import { ClassInfo, StudentInfo } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 
-function AddClassModal({ proffId }: { proffId: string }) {
+function AddStudentModal({
+  proffId,
+  currentClassId,
+}: {
+  proffId: string;
+  currentClassId: string;
+}) {
   const [isHidden, setIsHidden] = useState(true);
-  const [classId, setClassID] = useState("");
-  const [className, setClassName] = useState("Pick a Class");
+  const [classId, setClassID] = useState(currentClassId);
+  const [className, setClassName] = useState("Pick a student");
   const modalStore = useCrateClassModalStore();
 
-  const [classes, setClasses] = useState<ClassInfo[]>([]);
+  const [classes, setClasses] = useState<StudentInfo[]>([]);
   const [classQuery, setClassQuery] = useState("");
 
   async function handleOnClick() {
     if (classId === "") {
-      alert("Pick a class.");
+      alert("Pick a Student.");
       return;
     }
 
-    const res = await createCurrentClass(proffId, classId);
-    if (res.success) {
+    const res = await createCurrentStudentClass(currentClassId, classId);
+    if (res) {
       modalStore.Hide();
       window.location.reload();
     }
@@ -31,7 +42,7 @@ function AddClassModal({ proffId }: { proffId: string }) {
   useEffect(() => {
     if (classQuery === "") {
       const fetch = async () => {
-        const res = await readClassInfo();
+        const res = await readStudentInfo();
         setClasses(res.data);
       };
       fetch();
@@ -39,14 +50,14 @@ function AddClassModal({ proffId }: { proffId: string }) {
 
     setClasses(
       classes.filter((rec) =>
-        rec.classCode.toLowerCase().includes(classQuery.toLowerCase())
+        rec.studentCode.toLowerCase().includes(classQuery.toLowerCase())
       )
     );
   }, [classQuery]);
 
   useEffect(() => {
     const fetch = async () => {
-      const res = await readClassInfo();
+      const res = await readStudentInfo();
       setClasses(res.data);
     };
     fetch();
@@ -57,12 +68,12 @@ function AddClassModal({ proffId }: { proffId: string }) {
       <div className="border border-red-50 modal-container bg-white w-11/12 md:max-w-md mx-auto rounded shadow-lg z-50 ">
         <div className="modal-content py-4 text-left px-6">
           <div className="flex justify-between items-center pb-3">
-            <p className="text-2xl font-bold text-black">Add a class</p>
+            <p className="text-2xl font-bold text-black">Add a Student</p>
             <div className="modal-close cursor-pointer z-50"></div>
           </div>
 
           <div className="label">
-            <p className="text-gray-700 label-text">Class Code:</p>
+            <p className="text-gray-700 label-text">Student Code:</p>
           </div>
           <div className=" w-full h-auto flex items-center">
             <div className="relative group w-40">
@@ -109,18 +120,18 @@ function AddClassModal({ proffId }: { proffId: string }) {
                       classes.map((rec) => (
                         <div
                           onClick={(e) => {
-                            setClassID(rec.classId);
                             setIsHidden(true);
-                            setClassName(rec.classCode);
+                            setClassName(rec.studentCode);
+                            setClassID(rec.studentId);
                           }}
                           className="block px-4 py-2 text-gray-700 hover:bg-gray-100 active:bg-blue-100 cursor-pointer rounded-md"
                         >
-                          {rec.classCode}{" "}
+                          {rec.studentCode}
                         </div>
                       ))
                     ) : (
                       <div className="block px-4 py-2 text-gray-700 hover:bg-gray-100 active:bg-blue-100 cursor-pointer rounded-md">
-                        There are no classes
+                        There are no students
                       </div>
                     )}
                   </div>
@@ -151,4 +162,4 @@ function AddClassModal({ proffId }: { proffId: string }) {
   );
 }
 
-export default AddClassModal;
+export default AddStudentModal;

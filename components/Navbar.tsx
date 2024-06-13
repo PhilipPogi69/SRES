@@ -35,15 +35,7 @@ export default function NavBar() {
         className={`flex justify-end flex-1 transition-all duration-500 ease-in-out ${
           isHovered ? "opacity-100" : "opacity-0"
         }`}
-      >
-        <div className="flex">
-          <a className="btn btn-ghost normal-case text-xl">Dashboard</a>
-          <a className="btn btn-ghost normal-case text-xl">Message</a>
-          <a className="btn btn-ghost normal-case text-xl">Report</a>
-          <a className="btn btn-ghost normal-case text-xl">Attendance</a>
-          <a className="btn btn-ghost normal-case text-xl">Setting</a>
-        </div>
-      </div>
+      ></div>
       <div className="flex-none">
         <button className="btn btn-square btn-ghost" onClick={handleSignOut}>
           <IoIosLogOut className="text-2xl" />

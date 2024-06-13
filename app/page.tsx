@@ -7,7 +7,7 @@ import {
   createClassesFromFile,
   readUserInfo,
 } from "@/lib/util";
-import { ClassInfo } from "@prisma/client";
+import { ClassInfo, User } from "@prisma/client";
 import { Workbook } from "exceljs";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
@@ -32,7 +32,13 @@ function page() {
       const fetch = async () => {
         const user = await readUserInfo(data.user?.name || "");
         if (user) {
+          const data: User = user.data;
           currentData.updateData(user.data);
+          if (data.accessLevel === "STUDENT") {
+            router.push("/Dashboard/Student");
+          } else if (data.accessLevel === "INSTRUCTOR") {
+            router.push("/Dashboard/Professor");
+          }
         }
       };
 

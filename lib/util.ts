@@ -10,6 +10,7 @@ import {
   ProfessorInfo,
   User,
   GradesTemplate,
+  StudentGrades,
 } from "@prisma/client";
 import { colleges } from "./store";
 import { use } from "react";
@@ -177,15 +178,182 @@ export async function readMainGradeTamplate(
   }
 }
 
-export async function createCurrentStudentClass() {
+export async function createCurrentStudentClass(
+  currentClassId: string,
+  studentId: string
+) {
   try {
-    // const res = await prisma.
-    return null;
+    const res = await prisma.studentCurrentClasses.create({
+      data: {
+        currentClassId: currentClassId,
+        studentInfoStudentId: studentId,
+      },
+    });
+    return res;
   } catch (error) {
     if (error instanceof Error) {
       console.log(error.message);
     }
   }
+}
+
+export async function readCurrentStudentsbycurrentClass(
+  currentClassId: string
+) {
+  try {
+    const res = await prisma.studentCurrentClasses.findMany({
+      where: { currentClassId: currentClassId },
+      include: { student: true },
+    });
+    return res;
+  } catch (error) {
+    if (error instanceof Error) {
+      console.log(error.message);
+    }
+  }
+}
+
+export async function createStudentInfo(studentInfo: StudentInfo) {
+  try {
+    const res = await prisma.studentInfo.create({
+      data: studentInfo,
+    });
+
+    return true;
+  } catch (error) {
+    if (error instanceof Error) {
+      console.log(error.message);
+      return false;
+    }
+    return false;
+  }
+}
+
+export async function createStudentGrades(data: StudentGrades[]) {
+  try {
+    for (let index = 0; index < data.length; index++) {
+      const { gradesTemplateId, studentCurrentClassesId, value } = data[index];
+      const recCount = await prisma.studentCurrentClasses.count();
+      if (recCount) {
+        const deleteRecords = await prisma.studentGrades.deleteMany({
+          where: {
+            gradesTemplateId: gradesTemplateId,
+            studentCurrentClassesId: studentCurrentClassesId,
+          },
+        });
+
+        const createRecord = await prisma.studentGrades.create({
+          data: {
+            value: value,
+            gradesTemplateId: gradesTemplateId,
+            studentCurrentClassesId: studentCurrentClassesId,
+          },
+        });
+      } else {
+        console.log("dasd");
+        const createRecord = await prisma.studentGrades.create({
+          data: {
+            value: value,
+            gradesTemplateId: gradesTemplateId,
+            studentCurrentClassesId: studentCurrentClassesId,
+          },
+        });
+      }
+    }
+
+    return true;
+  } catch (error) {
+    if (error instanceof Error) {
+      console.log(error.message);
+      return false;
+    }
+    return false;
+  }
+}
+
+export async function readCurrentStudentClass(currentClassId: string): Promise<
+  | ({
+      student: {
+        studentId: string;
+        studentName: string;
+        studentCode: string;
+        studentEmail: string;
+        dateOfBirth: Date;
+        userId: string;
+      };
+    } & { id: string; currentClassId: string; studentInfoStudentId: string })[]
+  | undefined
+> {
+  try {
+    const res = await prisma.studentCurrentClasses.findMany({
+      where: { currentClassId: currentClassId },
+      include: { student: true },
+    });
+    return res;
+  } catch (error) {
+    if (error instanceof Error) {
+      console.log(error.message);
+    }
+  }
+}
+
+export async function readStudentGradesById(id: string) {
+  const res = await prisma.studentGrades.findMany({
+    where: {
+      studentCurrentClassesId: id,
+    },
+  });
+
+  return res;
+}
+
+export async function readStudentInfoById(id: string) {
+  const res = await prisma.studentInfo.findFirst({
+    where: {
+      userId: id,
+    },
+  });
+
+  return res;
+}
+
+export async function readStudentCurrentClassses(
+  studentId: string
+): Promise<
+  ({
+    currentClass: {
+      class: {
+        classId: string;
+        classCode: string;
+        units: number;
+        schedule: string;
+        description: string;
+      };
+      professor: {
+        profID: string;
+        profName: string;
+        email: string | null;
+        departmentId: string;
+        collegeId: string | null;
+        userId: string;
+      };
+    } & {
+      currentClassId: string;
+      classInfoClassId: string;
+      professorInfoProfID: string;
+      assignedAt: Date;
+      assignedBy: string;
+    };
+  } & { id: string; currentClassId: string; studentInfoStudentId: string })[]
+> {
+  const res = await prisma.studentCurrentClasses.findMany({
+    where: {
+      studentInfoStudentId: studentId,
+    },
+    include: { currentClass: { include: { class: true, professor: true } } },
+  });
+
+  return res;
 }
 
 export async function generateStudentsInfoAndAccounts(data: StudentInfoType[]) {
@@ -743,8 +911,28 @@ export async function updateClassInfo(data: ClassInfo): Promise<Result> {
   }
 }
 
-export async function getProffessorInfoByUserId(userId: string) {
-  const res = prisma.professorInfo.findFirst({ where: { userId: userId } });
+export async function getProffessorInfoByUserId(userId: string): Promise<
+  | ({
+      department: {
+        departmentId: string;
+        department: string;
+        collegeCollegeId: string;
+      };
+      College: { collegeId: string; college: string } | null;
+    } & {
+      profID: string;
+      profName: string;
+      email: string | null;
+      departmentId: string;
+      collegeId: string | null;
+      userId: string;
+    })
+  | null
+> {
+  const res = prisma.professorInfo.findFirst({
+    where: { userId: userId },
+    include: { College: true, department: true },
+  });
   return res;
 }
 
@@ -918,15 +1106,9 @@ export async function deleteProfessorInfo(
 // }
 
 // Read Student
-export async function readStudentInfo(data: StudentInfo): Promise<Result> {
-  const { studentId, studentName, studentEmail } = data;
+export async function readStudentInfo(): Promise<Result> {
   try {
-    const readStudentData = await prisma.studentInfo.findMany({
-      where: {
-        studentName: studentName, // Filter by classCode if provided
-        studentEmail: studentEmail, // Filter by schedule if provided
-      },
-    });
+    const readStudentData = await prisma.studentInfo.findMany();
     return {
       success: true,
       data: readStudentData, // Optionally return the retrieved data
